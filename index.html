@@ -43,6 +43,37 @@ th{background:#f8fbff;color:#18426d;cursor:pointer;z-index:4;font-weight:900}.ta
 .paramCard ul{margin:8px 0 0 18px;padding:0}.paramCard li{margin:5px 0;line-height:1.35}.paramCard b{color:#111827}.paramNote{font-size:12px;color:#667085;margin-top:10px;border-top:1px dashed #e5e7eb;padding-top:9px}.paramFormula{font-family:Consolas,Menlo,monospace;background:#f7f7f9;border:1px solid #e5e7eb;border-radius:10px;padding:8px 10px;margin:8px 0;color:#344054;font-size:12px}.paramGroupTitle{margin:20px 0 8px;font-size:18px;color:var(--navy)}
 @media(max-width:900px){.paramGrid{grid-template-columns:1fr}}
 
+/* Revisi responsif khusus Bagian 3 Scatter Plot: agar menu komponen dan tombol selalu terlihat di HP */
+@media(max-width:768px){
+  .card .controls{
+    display:grid!important;
+    grid-template-columns:1fr!important;
+    gap:10px!important;
+    width:100%!important;
+    overflow:visible!important;
+    align-items:stretch!important;
+  }
+  .card .controls > div{
+    width:100%!important;
+    min-width:0!important;
+  }
+  #focusSearch,
+  #focusSelect,
+  #scatterComponentMode,
+  .card .controls button{
+    width:100%!important;
+    max-width:100%!important;
+    min-width:0!important;
+    display:block!important;
+  }
+  .grid.four{
+    grid-template-columns:1fr!important;
+  }
+  .smallChart{height:260px}
+  .card{padding:14px;overflow:visible}
+  .wrap{padding:12px}
+}
+
 </style>
 </head>
 <body>
