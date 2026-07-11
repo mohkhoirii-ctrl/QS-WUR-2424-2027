@@ -43,6 +43,24 @@ th{background:#f8fbff;color:#18426d;cursor:pointer;z-index:4;font-weight:900}.ta
 .paramCard ul{margin:8px 0 0 18px;padding:0}.paramCard li{margin:5px 0;line-height:1.35}.paramCard b{color:#111827}.paramNote{font-size:12px;color:#667085;margin-top:10px;border-top:1px dashed #e5e7eb;padding-top:9px}.paramFormula{font-family:Consolas,Menlo,monospace;background:#f7f7f9;border:1px solid #e5e7eb;border-radius:10px;padding:8px 10px;margin:8px 0;color:#344054;font-size:12px}.paramGroupTitle{margin:20px 0 8px;font-size:18px;color:var(--navy)}
 @media(max-width:900px){.paramGrid{grid-template-columns:1fr}}
 
+
+.radarCompareTitle{margin:18px 0 8px;color:var(--navy);font-size:15px;font-weight:900}
+.radarCompareNote{font-size:12px;color:var(--muted);margin:0 0 8px;line-height:1.45}
+.radarCompareWrap{overflow:auto;border:1px solid var(--line);border-radius:14px;background:white;margin-top:8px;max-height:420px}
+#radarCompareTable{width:100%;border-collapse:separate;border-spacing:0;table-layout:auto;font-size:12px}
+#radarCompareTable th,#radarCompareTable td{padding:7px 8px;border-bottom:1px solid var(--line);white-space:nowrap;text-align:center;line-height:1.2}
+#radarCompareTable th{position:sticky;top:0;background:#f8fbff;color:#18426d;z-index:2;font-weight:900}
+#radarCompareTable td.meta,#radarCompareTable th.meta{text-align:left;background:#fff}
+#radarCompareTable th.meta{background:#f8fbff}
+#radarCompareTable tr.itsRow td.meta{background:#fff4e5;color:#8a4200;font-weight:900}
+#radarCompareTable td.hmCell{font-weight:800;color:#102a43;border-left:1px solid rgba(255,255,255,.35)}
+#radarCompareTable td.noData{background:#fff;color:#98a2b3;font-weight:600}
+@media(max-width:768px){
+  .radarCompareWrap{max-height:520px}
+  #radarCompareTable{font-size:11px}
+  #radarCompareTable th,#radarCompareTable td{padding:6px 6px}
+}
+
 /* Revisi responsif khusus Bagian 3 Scatter Plot: agar menu komponen dan tombol selalu terlihat di HP */
 @media(max-width:768px){
   .card .controls{
@@ -143,6 +161,9 @@ th{background:#f8fbff;color:#18426d;cursor:pointer;z-index:4;font-weight:900}.ta
     <div><label>Universitas pada grafik radar</label><div id="radarChips" class="chipBox"></div><div class="hint">Radar memakai skor komponen 2027 skala 0–100. Komponen ISD otomatis diabaikan bila tidak tersedia.</div></div>
     <div style="margin-top:12px"><button onclick="drawRadar()">Perbarui Radar</button></div>
     <div class="radarBox"><svg id="radarChart"></svg></div><div id="radarLegend" class="legend"></div>
+    <div class="radarCompareTitle">Tabel Perbandingan Nilai Komponen dan Total 2027</div>
+    <div class="radarCompareNote">Tabel ini otomatis mengikuti universitas yang dipilih pada grafik radar. Warna sel adalah heat map skor: semakin tinggi nilai semakin biru tua, semakin kecil semakin putih.</div>
+    <div class="radarCompareWrap"><table id="radarCompareTable"><thead></thead><tbody></tbody></table></div>
   </section>
 
   <section class="card" style="margin-top:18px">
@@ -535,7 +556,7 @@ function drawRadar(){
   let comps=components.filter(c=>c!=='Overall');
   const keys=selectedGroups.radar.length?selectedGroups.radar:uniqueCanonical(DATA.defaultKeys.slice(0,5));
   comps=comps.filter(c=>keys.some(k=>{const r=recordFor(k,2027); return r && score(r[c])!==null;}));
-  if(!comps.length){svg.innerHTML=`<text x="20" y="35" fill="#667085">Data radar 2027 tidak tersedia.</text>`; return;}
+  if(!comps.length){svg.innerHTML=`<text x="20" y="35" fill="#667085">Data radar 2027 tidak tersedia.</text>`; renderRadarCompareTable(); return;}
   const angle=i=>-Math.PI/2 + i*2*Math.PI/comps.length;
   function pt(i,val){const a=angle(i), rr=R*(val/100); return [cx+rr*Math.cos(a), cy+rr*Math.sin(a)];}
   [20,40,60,80,100].forEach(level=>{
@@ -551,6 +572,52 @@ function drawRadar(){
     comps.forEach((c,i)=>{let v=score(r[c]); if(v===null)return; const [x,y]=pt(i,v); svg.insertAdjacentHTML('beforeend',`<circle cx="${x}" cy="${y}" r="${k===ITSKEY?4.8:3.2}" fill="${color}" stroke="white" stroke-width="1"><title>${esc(labelName(k))} ${c}: ${fmt(v,1)}</title></circle>`);});
   });
   byId('radarLegend').innerHTML = keys.map((k,idx)=>`<span><i class="dot" style="background:${k===ITSKEY?'#f58220':palette[idx%palette.length]}"></i>${esc(labelName(k))}${k===ITSKEY?'<b class="itsBadge">ITS</b>':''}</span>`).join('');
+  renderRadarCompareTable();
+}
+
+
+const radarCompareCols=['AR','ER','FSR','CPF','IFR','ISR','ISD','IRN','EO','SUS','Overall'];
+function heatColor(v){
+  v=score(v);
+  if(v===null) return '';
+  const t=Math.max(0,Math.min(1,v/100));
+  // gradasi putih -> biru tua (#08306b). Nilai tinggi = biru tua.
+  const r=Math.round(255 + (8-255)*t);
+  const g=Math.round(255 + (48-255)*t);
+  const b=Math.round(255 + (107-255)*t);
+  return `rgb(${r},${g},${b})`;
+}
+function heatTextColor(v){
+  v=score(v);
+  return (v!==null && v>=58) ? '#ffffff' : '#102a43';
+}
+function renderRadarCompareTable(){
+  const table=byId('radarCompareTable');
+  if(!table) return;
+  const keys=selectedGroups.radar.length?selectedGroups.radar:uniqueCanonical(DATA.defaultKeys.slice(0,5));
+  // Urutkan tabel sesuai ranking QS WUR 2027: rank terbaik/angka terkecil di atas, rank terendah di bawah.
+  const rows=keys.map(k=>recordFor(k,2027)).filter(Boolean).sort((a,b)=>{
+    const ra = Number.isFinite(Number(a.RankNum)) ? Number(a.RankNum) : 999999;
+    const rb = Number.isFinite(Number(b.RankNum)) ? Number(b.RankNum) : 999999;
+    if(ra !== rb) return ra - rb;
+    return String(a.DisplayName||'').localeCompare(String(b.DisplayName||''));
+  });
+  if(!rows.length){
+    table.innerHTML='<thead></thead><tbody><tr><td style="padding:12px;color:#667085;text-align:left">Belum ada data 2027 untuk universitas yang dipilih.</td></tr></tbody>';
+    return;
+  }
+  const head=['Universitas','Negara','Rank',...radarCompareCols].map((c,i)=>`<th class="${i<3?'meta':''}">${esc(c)}</th>`).join('');
+  const body=rows.map(r=>{
+    const meta=`<td class="meta" title="${esc(r.DisplayName)}">${esc(r.DisplayName)}${r.ITS?' <span class="itsBadge">ITS</span>':''}</td><td class="meta">${esc(r['Country/Territory']||'-')}</td><td class="meta">${esc(r.RankLabel||'-')}</td>`;
+    const nums=radarCompareCols.map(c=>{
+      const v=score(r[c]);
+      if(v===null) return `<td class="noData" title="${c}: tidak tersedia">-</td>`;
+      const bg=heatColor(v), fg=heatTextColor(v);
+      return `<td class="hmCell" style="background:${bg};color:${fg}" title="${esc(r.DisplayName)} ${c}: ${fmt(v,1)}">${fmt(v,1)}</td>`;
+    }).join('');
+    return `<tr class="${r.ITS?'itsRow':''}">${meta}${nums}</tr>`;
+  }).join('');
+  table.innerHTML=`<thead><tr>${head}</tr></thead><tbody>${body}</tbody>`;
 }
 
 const tableCols=['Year','RankLabel','DisplayName','Country/Territory','Region','AR','ER','FSR','CPF','IFR','ISR','ISD','IRN','EO','SUS','Overall'];
